@@ -2,22 +2,15 @@
 /**+----------------------------------------------------------------------
  * JamesPi RPC [php-swoole-consul-rpc]
  * +----------------------------------------------------------------------
- * Application Management File
+ * Tcp protocol call service file
  * +----------------------------------------------------------------------
  * Copyright (c) 2020-2030 http://www.pijianzhong.com All rights reserved.
  * +----------------------------------------------------------------------
  * Author：PiJianZhong <jianzhongpi@163.com>
  * +----------------------------------------------------------------------
  */
+namespace Jamespi\Rpc\src\Server;
 
-namespace Jamespi\Rpc\jrpc;
-
-class App {
-
-
-    public function run($request)
-    {
-
-    }
+class Tcp {
 
 }

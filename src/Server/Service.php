@@ -2,7 +2,7 @@
 /**+----------------------------------------------------------------------
  * JamesPi RPC [php-swoole-consul-rpc]
  * +----------------------------------------------------------------------
- * Application Management File
+ * RPC protocol call service file
  * +----------------------------------------------------------------------
  * Copyright (c) 2020-2030 http://www.pijianzhong.com All rights reserved.
  * +----------------------------------------------------------------------
@@ -10,14 +10,13 @@
  * +----------------------------------------------------------------------
  */
 
-namespace Jamespi\Rpc\jrpc;
-
-class App {
+namespace Jamespi\Rpc\src\Server;
 
 
-    public function run($request)
+class Service
+{
+    public function run($config)
     {
-
+        var_dump($config);
     }
-
 }

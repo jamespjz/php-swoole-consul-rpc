@@ -1,0 +1,22 @@
+{
+    "name": "jamespi/php-swoole-consul-rpc",
+    "description": "php整合swoole进行RPC调用框架及应用consul进行服务治理",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "pijianzhong",
+            "email": "jianzhongpi@163.net"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php":">=7.0",
+        "guzzlehttp/guzzle": "^6.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Jamespi\\Rpc\\": "/"
+        }
+    }
+}

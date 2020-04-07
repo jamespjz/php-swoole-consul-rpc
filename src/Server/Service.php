@@ -15,8 +15,9 @@ namespace Jamespi\Rpc\src\Server;
 
 class Service
 {
-    public function run($config)
+    protected $http;
+    public function __construct(array $config)
     {
-        var_dump($config);
+        $this->http = new Swoole\Http\Server($config['host'], $config['port']);
     }
 }

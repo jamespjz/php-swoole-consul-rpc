@@ -109,9 +109,6 @@ abstract class Service
         $this->WebSocket = [
 
         ];
-
-        //调用初始化方法
-        $this->init();
     }
 
     /**

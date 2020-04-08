@@ -24,16 +24,18 @@ class Http extends Service{
 
     public function run()
     {
-        $http = new Server($this->HttpConfig['host'], $this->HttpConfig['port']);
-        $http->set(['upload_tmp_dir' => $this->HttpConfig['upload_tmp_dir']]);
-        $http->set(['task_worker_num' => $this->HttpConfig['task_worker_num']]);
-        $http->set(['worker_num' => $this->HttpConfig['worker_num']]);
+        try{
+            $http = new Server($this->HttpConfig['host'], $this->HttpConfig['port']);
+            $http->set(['upload_tmp_dir' => $this->HttpConfig['upload_tmp_dir']]);
+            $http->set(['task_worker_num' => $this->HttpConfig['task_worker_num']]);
+            $http->set(['worker_num' => $this->HttpConfig['worker_num']]);
 
-        $http->on('request', [$this, 'request']);
-//        $http->on('request', function ($request, $response) {
-//            $response->header("Content-Type", "text/html; charset=utf-8");
-//            $response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
-//        });
+            $http->on('request', [$this, 'onRequest']);
+            $http->on('task', [$this, 'onTask']);
+            $http->on('finish', [$this, 'onFinish']);
+        }catch (\Exception $e){
+            echo $e->getMessage();
+        }
 
         $http->start(); //启动服务器
     }
@@ -43,8 +45,18 @@ class Http extends Service{
         echo "http服务启动啦";
     }
 
-    public function request($request, $response)
+    public function onRequest($request, $response)
     {
         echo "http服务request参数".$request->header['host']."response参数".$response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
+    }
+
+    public function onTask()
+    {
+
+    }
+
+    public function onFinish()
+    {
+
     }
 }

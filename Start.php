@@ -24,19 +24,18 @@ class Start
     public function run($argv, array $config)
     {
         // 执行应用
-        (new Http($config));
         switch ($argv[1]){
             case 'http:start':
-                (new Http())->run();
+                (new Http($config))->run();
                 break;
             case 'tcp:start':
-                (new Tcp())->run();
+                (new Tcp($config))->run();
                 break;
             case 'websocket:start':
-                (new Websocket())->run();
+                (new Websocket($config))->run();
                 break;
             default:
-                (new Http())->run();
+                (new Http($config))->run();
                 break;
         }
     }

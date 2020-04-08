@@ -87,9 +87,9 @@ abstract class Service
                 //请求端口
                 'port' => $config['HttpConfig']['port'],
                 //task进程数
-                'task_worker_num' => ( array_key_exists('task_worker_num', $config['HttpConfig'])&&$config['HttpConfig']['task_worker_num'] )?$config['HttpConfig']['task_worker_num']:1,
-                //work进程数
-                'worker_num' => ( array_key_exists('worker_num', $config['HttpConfig'])&&$config['HttpConfig']['worker_num'] )?$config['HttpConfig']['worker_num']:2,
+//                'task_worker_num' => ( array_key_exists('task_worker_num', $config['HttpConfig'])&&$config['HttpConfig']['task_worker_num'] )?$config['HttpConfig']['task_worker_num']:1,
+//                //work进程数
+//                'worker_num' => ( array_key_exists('worker_num', $config['HttpConfig'])&&$config['HttpConfig']['worker_num'] )?$config['HttpConfig']['worker_num']:2,
                 //设置上传文件的临时目录。目录最大长度不得超过 220 字节
                 'upload_tmp_dir' => ( array_key_exists('upload_tmp_dir', $config['HttpConfig'])&&$config['HttpConfig']['upload_tmp_dir'] )?$config['HttpConfig']['upload_tmp_dir']:'/data/uploadfiles/',
                 //针对 Request 对象的配置，设置 POST 消息解析开关，默认开启

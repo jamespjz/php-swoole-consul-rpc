@@ -31,16 +31,13 @@ class Http extends Service{
             $http->set(['worker_num' => $this->HttpConfig['worker_num']]);
 
             $http->on('request', [$this, 'onRequest']);
-            $http->on('task', [$this, 'onTask']);
-            $http->on('finish', [$this, 'onFinish']);
+            $http->start(); //启动服务器
         }catch (\Exception $e){
             echo $e->getMessage();
         }
-
-        $http->start(); //启动服务器
     }
 
-    public function start()
+    public function onStart($serv)
     {
         echo "http服务启动啦";
     }
@@ -48,15 +45,5 @@ class Http extends Service{
     public function onRequest($request, $response)
     {
         echo "http服务request参数".$request->header['host']."response参数".$response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
-    }
-
-    public function onTask()
-    {
-
-    }
-
-    public function onFinish()
-    {
-
     }
 }

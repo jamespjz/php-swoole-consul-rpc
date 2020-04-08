@@ -24,7 +24,7 @@ class Start
     public function run($argv, array $config)
     {
         // 执行应用
-        (new Service($config));
+        (new Http($config));
         switch ($argv[1]){
             case 'http:start':
                 (new Http())->run();

@@ -14,9 +14,12 @@ namespace Jamespi\Rpc\src\Server;
 use Swoole\Http\Server;
 class Http extends Service{
 
-    public function __construct()
+    public function init(array $config)
     {
-        parent::__construct();
+        if (array_key_exists('HttpConfig', $config) && $config['HttpConfig']){
+            if ( (array_key_exists('host', $config['HttpConfig']) && empty($config['HttpConfig']['host']) )|| (array_key_exists('port', $config['HttpConfig']) && empty($config['HttpConfig']['port'])) )
+                echo "请求地址与端口不能为空!";
+        }
     }
 
     public function run()

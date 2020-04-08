@@ -23,30 +23,23 @@ class Start
     protected $config;
     public function run($argv, array $config)
     {
-        $this->init($config);
         // 执行应用
-        (new Service($this->config));
+        (new Service($config));
         switch ($argv[1]){
             case 'http:start':
-                (new Http())->run($this->config);
+                (new Http())->run();
                 break;
             case 'tcp:start':
-                (new Tcp())->run($this->config);
+                (new Tcp())->run();
                 break;
             case 'websocket:start':
-                (new Websocket())->run($this->config);
+                (new Websocket())->run();
                 break;
             default:
-                (new Http())->run($this->config);
+                (new Http())->run();
                 break;
         }
     }
 
-    public function init(array $data)
-    {
-        $config = require_once (__DIR__.'/src/config/config.php');
-        $config['host'] = !empty($data['host']) ? $data['host'] : $config['host'];
-        $config['port'] = !empty($data['port']) ? $data['port'] : $config['port'];
-        $this->config;
-    }
+
 }

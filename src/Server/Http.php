@@ -12,7 +12,9 @@
 namespace Jamespi\Rpc\src\Server;
 
 use Swoole\Http\Server;
-use Jamespi\Consul\Controllers\serviceController;
+use \Jamespi\Consul\Controllers\serviceController;
+use \Jamespi\Consul\Core\Consul;
+
 class Http extends Service{
 
     /**
@@ -22,9 +24,11 @@ class Http extends Service{
      */
     public function init(array $config)
     {
-        if (array_key_exists('HttpConfig', $config) && $config['HttpConfig']){
-            if ( (array_key_exists('host', $config['HttpConfig']) && empty($config['HttpConfig']['host']) )|| (array_key_exists('port', $config['HttpConfig']) && empty($config['HttpConfig']['port'])) )
-                echo "请求地址与端口不能为空!";
+        if (isset($config['HttpConfig']) && $config['HttpConfig']){
+            if ( (!isset($config['HttpConfig']['host']) || !isset($config['HttpConfig']['port'])) || (isset($config['HttpConfig']['host']) && empty($config['HttpConfig']['host']) )|| (isset($config['HttpConfig']['port']) && empty($config['HttpConfig']['port'])) )
+                echo "请求地址与端口不能为空！";
+        }else{
+            echo "缺乏请求参数！";
         }
     }
 
@@ -38,6 +42,7 @@ class Http extends Service{
             $http->set(
                 [
                     'upload_tmp_dir' => $this->HttpConfig['upload_tmp_dir'],
+                    'daemonize' => $this->HttpConfig['daemonize'],
 //                    'task_worker_num' => $this->HttpConfig['task_worker_num'],
 //                    'worker_num' => $this->HttpConfig['worker_num']
                 ]
@@ -57,9 +62,8 @@ class Http extends Service{
      */
     public function onStart($serv)
     {
-        var_dump($serv->ConsulConfig);
         echo "http服务启动啦";
-        $this->_registerService();
+        $this->_registerService($serv);
     }
 
     /**
@@ -69,8 +73,16 @@ class Http extends Service{
      */
     public function onRequest($request, $response)
     {
+//        if ($request->server['path_info'] == '/favicon.ico' || $request->server['request_uri'] == '/favicon.ico')       {
+//            $response->end("<h1>404.</h1>");
+//            return;
+//        }
+//
+//        list($controller, $action) = explode('/', trim($request->server['request_uri'], '/'));
+//        //根据 $controller, $action 映射到不同的控制器类和方法
+//        (new $controller)->$action($request, $response);
 
-        echo "http服务request参数".$request->header['host']."response参数";
+        $response->header("Content-Type", "text/html; charset=utf-8");
         $response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
     }
 
@@ -80,8 +92,21 @@ class Http extends Service{
      */
     private function _registerService($arguments=null)
     {
-        $serviceModel = new serviceController();
-        return call_user_func_array([$serviceModel, 'registrationService'], $arguments);
+        $config = $this->ConsulConfig;
+        $service = [
+            'id' => 'pp-rpc',
+            'name' => 'pp-rpc',
+            'address' => $config['host'],
+            'port' => $config['port'],
+            'tags' => ['test'],
+            'checks'=> [
+                'http'=> 'http://'.$arguments->host.":".$arguments->port,
+                'interval'=> '5s'
+            ]
+        ];
+
+        $serviceModel = new serviceController(new Consul(), $config['host'], $config['port']);
+        return call_user_func_array([$serviceModel, 'registrationService'], $service);
     }
 
     private function _deleteService($arguments=null)
@@ -99,7 +124,7 @@ class Http extends Service{
         //打印服务器字幕
 //        swoole_set_process_name("PP Master Thread");
         cli_set_process_title("PP Master Thread");
-        echo PHP_EOL.PHP_EOL.PHP_EOL;
+        echo PHP_EOL.PHP_EOL;
         echo "--------------------------------------------------------------------------".PHP_EOL;
         echo "|                  |----    |----    |----    |----     ----              |".PHP_EOL;
         echo "|                  |    |   |    |   |    |   |    |   |                  |".PHP_EOL;
@@ -109,11 +134,13 @@ class Http extends Service{
         echo "--------------------------------------------------------------------------".PHP_EOL;
         echo "\033[1A\n\033[K-----------------------\033[47;30m PP Rpc Server \033[0m-----------------------------\n\033[0m";
         echo "    Version:0.1 Beta, PHP Version:".PHP_VERSION.PHP_EOL;
+
         echo "         The Server is \033[36m running \033[0m on HTTP".PHP_EOL.PHP_EOL;
+
         echo "--------------------------\033[47;30m PORT \033[0m---------------------------\n";
         echo "                   HTTP:".$this->HttpConfig['port']."  TCP:".$this->HttpConfig['port']."\n\n";
         echo "------------------------\033[47;30m PROCESS \033[0m---------------------------\n";
-        echo "      MasterPid---ManagerPid---WorkerId---WorkerPid".PHP_EOL;
+        echo "      MasterPid---ManagerPid---WorkerId---WorkerPid".PHP_EOL.PHP_EOL;
     }
 
     /**
@@ -122,7 +149,7 @@ class Http extends Service{
      */
     private function _helpUI($arguments=null)
     {
-        echo PHP_EOL.PHP_EOL.PHP_EOL;
+        echo PHP_EOL.PHP_EOL;
         echo "--------------------------------------------------------------------------".PHP_EOL;
         echo "|                  |----    |----    |----    |----     ----              |".PHP_EOL;
         echo "|                  |    |   |    |   |    |   |    |   |                  |".PHP_EOL;
@@ -157,6 +184,7 @@ class Http extends Service{
         echo "    Version:0.1 Beta, PHP Version:".PHP_VERSION.PHP_EOL;
         echo "--------------------------\033[47;30m PORT \033[0m---------------------------\n";
         echo "                   HTTP:".$this->HttpConfig['port']."  TCP:".$this->HttpConfig['port']."\n\n";
+        echo PHP_EOL;
     }
 
     /**

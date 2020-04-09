@@ -12,7 +12,8 @@
     "minimum-stability": "dev",
     "require": {
         "php":">=7.0",
-        "guzzlehttp/guzzle": "^6.5"
+        "guzzlehttp/guzzle": "^6.5",
+        "jamespi/php-consul-plugin": "dev-master"
     },
     "autoload": {
         "psr-4": {

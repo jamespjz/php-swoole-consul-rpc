@@ -86,6 +86,8 @@ abstract class Service
                 'host' => $config['HttpConfig']['host'],
                 //请求端口
                 'port' => $config['HttpConfig']['port'],
+                //守护进程化启用相关配置
+                'daemonize' => ( array_key_exists('daemonize', $config['HttpConfig'])&&$config['HttpConfig']['daemonize'] )?$config['HttpConfig']['daemonize']:1,
                 //task进程数
 //                'task_worker_num' => ( array_key_exists('task_worker_num', $config['HttpConfig'])&&$config['HttpConfig']['task_worker_num'] )?$config['HttpConfig']['task_worker_num']:1,
 //                //work进程数

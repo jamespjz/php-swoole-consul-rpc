@@ -13,7 +13,6 @@
 namespace Jamespi\Rpc;
 
 use ReflectionClass;
-use Jamespi\Rpc\src\Server\Service;
 use Jamespi\Rpc\src\Server\Http;
 use Jamespi\Rpc\src\Server\Tcp;
 use Jamespi\Rpc\src\Server\Websocket;

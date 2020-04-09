@@ -12,8 +12,8 @@
 namespace Jamespi\Rpc\src\Server;
 
 use Swoole\Http\Server;
-use \Jamespi\Consul\Controllers\serviceController;
-use \Jamespi\Consul\Core\Consul;
+use Jamespi\Consul\Controllers\ServiceController;
+use Jamespi\Consul\Core\Consul;
 
 class Http extends Service{
 
@@ -105,7 +105,7 @@ class Http extends Service{
             ]
         ];
 
-        $serviceModel = new serviceController(new Consul(), $config['host'], $config['port']);
+        $serviceModel = new ServiceController(new Consul(), $config['host'], $config['port']);
         return call_user_func_array([$serviceModel, 'registrationService'], $service);
     }
 

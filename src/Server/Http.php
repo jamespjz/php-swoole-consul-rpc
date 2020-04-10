@@ -73,17 +73,20 @@ class Http extends Service{
      */
     public function onRequest($request, $response)
     {
-//        if ($request->server['path_info'] == '/favicon.ico' || $request->server['request_uri'] == '/favicon.ico')       {
-//            $response->end("<h1>404.</h1>");
-//            return;
-//        }
-//
-//        list($controller, $action) = explode('/', trim($request->server['request_uri'], '/'));
-//        //根据 $controller, $action 映射到不同的控制器类和方法
-//        (new $controller)->$action($request, $response);
+        if ($request->server['path_info'] == '/favicon.ico' || $request->server['request_uri'] == '/favicon.ico')       {
+            $response->end("<h1>404.</h1>");
+            return;
+        }else{
+            if (isset($request->server['request_uri']) && !empty($request->server['request_uri'])){
+                list($controller, $action) = explode('/', trim($request->server['request_uri'], '/'));
+            }
 
-        $response->header("Content-Type", "text/html; charset=utf-8");
-        $response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
+            //根据 $controller, $action 映射到不同的控制器类和方法
+//            (new $controller)->$action($request, $response);
+
+            $response->header("Content-Type", "text/html; charset=utf-8");
+            $response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
+        }
     }
 
     /**
@@ -94,14 +97,16 @@ class Http extends Service{
     {
         $config = $this->ConsulConfig;
         $service = [
-            'id' => 'pp-rpc',
-            'name' => 'pp-rpc',
-            'address' => $config['host'],
-            'port' => $config['port'],
-            'tags' => ['test'],
-            'checks'=> [
-                'http'=> 'http://'.$arguments->host.":".$arguments->port,
-                'interval'=> '5s'
+            [
+                'id' => 'pp-rpc',
+                'name' => 'pp-rpc',
+                'address' => $config['host'],
+                'port' => (int)$config['port'],
+                'tags' => ['test'],
+//                'checks'=> json_encode([
+//                    'http'=> "http://".$arguments->host.":".$arguments->port,
+//                    'interval'=> '5s'
+//                ])
             ]
         ];
 
@@ -120,6 +125,12 @@ class Http extends Service{
      */
     private function _statusUI($arguments=null)
     {
+        $config = $this->ConsulConfig;
+        $serviceModel = new ServiceController(new Consul(), $config['host'], $config['port']);
+        $serviceInfo = call_user_func_array([$serviceModel, 'checkHealthService'], 'pp-rpc');
+        $serviceInfo = json_decode($serviceInfo);
+        var_dump($serviceInfo);
+
         echo PHP_EOL;
         //打印服务器字幕
 //        swoole_set_process_name("PP Master Thread");

@@ -3,10 +3,10 @@ php整合swoole及consul进行封装成的RPC服务端框架，支持consul进�
 
 >使用版本说明：Consul v1.7.2 - PHP v7.4.1 - Swoole v4.4.12 - Composer v1.10
 
-#简要说明：
+# 简要说明：
 公司目前正在全面转微服务架构，这个RPC框架是为了让公司phper在分布式系统间能够简单方便调用各依赖服务的方法从而进行封装的框架，框架采用PHP+SWOOLE+CONSUL进行搭建，支持服务治理功能，支持HTTP/TCP/UDP/Websocket协议，目前为version 0.1-dev。
 
-#功能简介：
+# 功能简介：
 * 服务注册
 * 服务发现
 * 服务删除
@@ -15,9 +15,9 @@ php整合swoole及consul进行封装成的RPC服务端框架，支持consul进�
 * HTTP调用
 * TCP/UDP调用
 * Websocket调用
-*其余特性参考 https://www.consul.io https://wiki.swoole.com
+* 其余特性参考 https://www.consul.io https://wiki.swoole.com
 
-#部署安装
+# 部署安装
 * github下载
 ```
 git clone https://github.com/jamespjz/php-swoole-consul-rpc.git
@@ -28,7 +28,7 @@ git clone https://github.com/jamespjz/php-swoole-consul-rpc.git
 composer require jamespi/php-swoole-consul-rpc dev-master
 ```
 
-#使用方式
+# 使用方式
 >调用PP RPC例子
 
 ```
@@ -116,6 +116,6 @@ php index.php [command] [option]
 2、port：请求端口（必传）
 ```
 
-#联系方式
+# 联系方式
 * wechat：james-pi
 * email：jianzhongpi@163.com

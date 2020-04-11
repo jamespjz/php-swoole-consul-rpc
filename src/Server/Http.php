@@ -77,16 +77,58 @@ class Http extends Service{
             $response->end("<h1>404.</h1>");
             return;
         }else{
-            if (isset($request->server['request_uri']) && !empty($request->server['request_uri'])){
-                list($controller, $action) = explode('/', trim($request->server['request_uri'], '/'));
+            $msg = 'world！';
+            if (isset($request->server['request_uri']) && !empty($request->server['request_uri']) && $request->server['request_uri']!= '/'){
+
+                $serviceList = $this->_getFileContent($request->server['request_uri']);
+                if (!empty($serviceList)){
+                    foreach ($serviceList as $value){
+                        //根据 $controller, $action 映射到不同的控制器类和方法
+                        $msg = call_user_func_array([$value['class'], $value['method']], ['james']);
+                    }
+                }
+
             }
-
-            //根据 $controller, $action 映射到不同的控制器类和方法
-//            (new $controller)->$action($request, $response);
-
             $response->header("Content-Type", "text/html; charset=utf-8");
-            $response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
+            $response->end("<h1>Hello ".$msg.". #".rand(1000, 9999)."</h1>");
         }
+    }
+
+    /**
+     * 查询匹配的注册服务
+     * @param string $requestUri
+     * @return array
+     */
+    private function _getFileContent(string $requestUri):array
+    {
+        $services = file_get_contents(dirname(__FILE__).'/registerService.txt');
+        $serviceArr = explode("\n", trim($services, "\n"));
+        $service = [];
+        foreach($serviceArr as $key=>$value){
+            if(strstr($value, rtrim($requestUri, "/"))){
+                $option = explode("*", trim($value, "*"));
+                switch(count($option)){
+                    case 2:
+                        $class = new ReflectionClass($option[0]);
+                        $methods = $class->getMethods();
+                        foreach ($methods as $v){
+                            $service[] = [
+                                'class' => $option[0],
+                                'method' => $v->name
+                            ];
+                        }
+                        break;
+                    case 3:
+                        $service[] = [
+                            'class' => $option[0],
+                            'method' => $option[2]
+                        ];
+                        break;
+                }
+            }
+        }
+
+        return $service;
     }
 
     /**
@@ -127,9 +169,8 @@ class Http extends Service{
     {
         $config = $this->ConsulConfig;
         $serviceModel = new ServiceController(new Consul(), $config['host'], $config['port']);
-        $serviceInfo = call_user_func_array([$serviceModel, 'checkHealthService'], 'pp-rpc');
+        $serviceInfo = call_user_func_array([$serviceModel, 'checkHealthService'], ['pp-rpc']);
         $serviceInfo = json_decode($serviceInfo);
-        var_dump($serviceInfo);
 
         echo PHP_EOL;
         //打印服务器字幕
@@ -145,9 +186,11 @@ class Http extends Service{
         echo "--------------------------------------------------------------------------".PHP_EOL;
         echo "\033[1A\n\033[K-----------------------\033[47;30m PP Rpc Server \033[0m-----------------------------\n\033[0m";
         echo "    Version:0.1 Beta, PHP Version:".PHP_VERSION.PHP_EOL;
-
-        echo "         The Server is \033[36m running \033[0m on HTTP".PHP_EOL.PHP_EOL;
-
+        if ($serviceInfo[0]->Status == 'passing') {
+            echo "         The Server is \033[36m running \033[0m on HTTP" . PHP_EOL . PHP_EOL;
+        }else{
+            echo "         The Server is \033[31m ".$serviceInfo[0]->Status." \033[0m on HTTP,and the Server \e[31m Fails \e[0m to Start" . PHP_EOL . PHP_EOL;
+        }
         echo "--------------------------\033[47;30m PORT \033[0m---------------------------\n";
         echo "                   HTTP:".$this->HttpConfig['port']."  TCP:".$this->HttpConfig['port']."\n\n";
         echo "------------------------\033[47;30m PROCESS \033[0m---------------------------\n";

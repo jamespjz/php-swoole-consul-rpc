@@ -11,11 +11,18 @@
  */
 namespace Jamespi\Rpc\src\Server;
 
+use Jamespi\Rpc\src\Api\HttpInterface;
 use Swoole\Http\Server;
 use Jamespi\Consul\Controllers\ServiceController;
 use Jamespi\Consul\Core\Consul;
 
-class Http extends Service{
+class Http extends Service implements HttpInterface {
+
+    /**
+     * HTTP服务实例
+     * @var
+     */
+    protected $http;
 
     /**
      * 服务初始化
@@ -37,41 +44,63 @@ class Http extends Service{
      */
     public function run()
     {
-        try{
-            $http = new Server($this->HttpConfig['host'], $this->HttpConfig['port']);
-            $http->set(
-                [
-                    'upload_tmp_dir' => $this->HttpConfig['upload_tmp_dir'],
-                    'daemonize' => $this->HttpConfig['daemonize'],
-//                    'task_worker_num' => $this->HttpConfig['task_worker_num'],
-//                    'worker_num' => $this->HttpConfig['worker_num']
-                ]
-            );
+        if ($this->HttpConfig['task_worker_num']){
+            $setting = [
+                'upload_tmp_dir' => $this->HttpConfig['upload_tmp_dir'],
+                'daemonize' => $this->HttpConfig['daemonize'],
+                'task_worker_num' => $this->HttpConfig['task_worker_num'],
+                'worker_num' => $this->HttpConfig['worker_num']
+            ];
+        }else{
+            $setting = [
+                'upload_tmp_dir' => $this->HttpConfig['upload_tmp_dir'],
+                'daemonize' => $this->HttpConfig['daemonize'],
+                'task_worker_num' => $this->HttpConfig['task_worker_num'],
+                'worker_num' => $this->HttpConfig['worker_num']
+            ];
+        }
 
-            $http->on('start', [$this, 'onStart']);
-            $http->on('request', [$this, 'onRequest']);
-            $http->start(); //启动服务器
+        try{
+            $this->http = new Server($this->HttpConfig['host'], $this->HttpConfig['port']);
+            $this->http->set($setting);
+
+            $this->http->on('start', [$this, 'onStart']);
+            $this->http->on('request', [$this, 'onRequest']);
+            $this->http->on('task', [$this, 'onTask']);
+            $this->http->on('finish', [$this, 'onFinish']);
+            $this->http->start(); //启动服务器
         }catch (\Exception $e){
             echo $e->getMessage();
         }
     }
 
     /**
-     * HTTP服务启动回调方法
-     * @param $serv
+     * 新连接建立时在work进程中回调
+     * @param \swoole_server $serv swoole_server对象
+     * @param int $fd 连接的文件描述符，连接的客户端id
+     * @param int $reactorId 线程id
      */
-    public function onStart($serv)
+    public function onConnect(\swoole_server  $serv, int $fd, int $reactorId)
     {
-        echo "http服务启动啦";
+        echo "connecting";
+    }
+
+    /**
+     * HTTP服务启动回调方法
+     * @param \swoole_server $serv swoole_server对象
+     */
+    public function onStart(\swoole_server  $serv)
+    {
+        echo "http服务启动啦".swoole_cpu_num();
         $this->_registerService($serv);
     }
 
     /**
      * 接收请求回调方法
-     * @param $request
-     * @param $response
+     * @param \swoole_http_request $request 请求对象
+     * @param \swoole_http_response $response 响应对象
      */
-    public function onRequest($request, $response)
+    public function onRequest(\swoole_http_request $request, \swoole_http_response $response)
     {
         if ($request->server['path_info'] == '/favicon.ico' || $request->server['request_uri'] == '/favicon.ico')       {
             $response->end("<h1>404.</h1>");
@@ -83,8 +112,12 @@ class Http extends Service{
                 $serviceList = $this->_getFileContent($request->server['request_uri']);
                 if (!empty($serviceList)){
                     foreach ($serviceList as $value){
-                        //根据 $controller, $action 映射到不同的控制器类和方法
-                        $msg = call_user_func_array([$value['class'], $value['method']], ['james']);
+                        if (empty($value['method'])){
+                            $msg = '请求方法不存在';
+                        }else {
+                            //根据 $controller, $action 映射到不同的控制器类和方法
+                            $msg = call_user_func_array([$value['class'], $value['method']], ['james']);
+                        }
                     }
                 }
 
@@ -95,13 +128,71 @@ class Http extends Service{
     }
 
     /**
+     * work/task进程启动时回调
+     * @param \swoole_server $serv swoole_server对象
+     * @param int $worker_id 进程id
+     */
+    public function onWorkerStart(\swoole_server $serv, int $worker_id)
+    {
+        echo "open worker ".$worker_id;
+    }
+
+    /**
+     * work进程终止时回调
+     * @param \swoole_server $serv
+     * @param int $worker_id
+     */
+    public function onWorkerStop(\swoole_server $serv, int $worker_id)
+    {
+        echo "close worker ".$worker_id;
+    }
+
+    /**
+     * task进程调用回调
+     * @param \swoole_server $serv swoole_server对象
+     * @param int $task_id task进程id
+     * @param int $src_worker_id work进程id
+     * @param string $data 任务内容
+     * @return mixed
+     */
+    public function onTask(\swoole_server $serv, int $task_id, int $src_worker_id, string $data)
+    {
+        echo "task ".$task_id." work ".$src_worker_id. " data ".json_encode($data);
+        return;
+    }
+
+    /**
+     * task执行完毕将结果发给work进程
+     * @param \swoole_server $serv swoole_server对象
+     * @param int $task_id 执行任务的task进程id
+     * @param string $data 任务内容
+     * @return mixed
+     */
+    public function onFinish(\swoole_server $serv, int $task_id, string $data)
+    {
+        echo "finish ".$task_id. " data ".json_encode($data);
+    }
+
+    /**
+     * TCP客户端连接关闭，work进程中回调此函数
+     * @param \swoole_server $serv swoole_server对象
+     * @param int $fd 连接的文件描述符客户端id
+     * @param int $reactorId 线程id
+     * @return mixed
+     */
+    public function onClose(\swoole_server $serv, int $fd, int $reactorId)
+    {
+        echo "close ".$fd. " reactorId ".$reactorId;
+    }
+
+    /**
      * 查询匹配的注册服务
      * @param string $requestUri
      * @return array
      */
     private function _getFileContent(string $requestUri):array
     {
-        $services = file_get_contents(dirname(__FILE__).'/registerService.txt');
+        $services = file_get_contents(dirname(dirname(__FILE__)).'/registerService.txt');
         $serviceArr = explode("\n", trim($services, "\n"));
         $service = [];
         foreach($serviceArr as $key=>$value){
@@ -109,14 +200,10 @@ class Http extends Service{
                 $option = explode("*", trim($value, "*"));
                 switch(count($option)){
                     case 2:
-                        $class = new ReflectionClass($option[0]);
-                        $methods = $class->getMethods();
-                        foreach ($methods as $v){
-                            $service[] = [
-                                'class' => $option[0],
-                                'method' => $v->name
-                            ];
-                        }
+                        $service[] = [
+                            'class' => $option[0],
+                            'method' => ''
+                        ];
                         break;
                     case 3:
                         $service[] = [
@@ -249,6 +336,10 @@ class Http extends Service{
      */
     public function __call($name, $arguments)
     {
-        return call_user_func_array([$this, $name], $arguments);
+        if (method_exists($this, $name)) {
+            return call_user_func_array([$this, $name], $arguments);
+        }else{
+            throw new \Exception('方法不存在:' . $name, 10);
+        }
     }
 }

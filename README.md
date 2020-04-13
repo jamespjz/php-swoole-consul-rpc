@@ -29,7 +29,16 @@ composer require jamespi/php-swoole-consul-rpc dev-master
 ```
 
 # 使用方式
->调用PP RPC例子
+> 向PP RPC注册服务例子（必须先注册服务才进行RPC调用，否则RPC发现不了实体服务）
+```
+//在您项目根目录的入口文件中加入如下代码：
+require_once 'vendor/autoload.php';
+use Jamespi\Rpc\Start;
+//注册服务
+echo (new Start())->registerService('App\IndexControllers', '/hello/index?id=1', 'index');
+
+```
+> 调用PP RPC例子
 
 ```
 //在您项目根目录的入口文件中加入如下代码：

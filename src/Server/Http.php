@@ -55,7 +55,6 @@ class Http extends Service implements HttpInterface {
             $setting = [
                 'upload_tmp_dir' => $this->HttpConfig['upload_tmp_dir'],
                 'daemonize' => $this->HttpConfig['daemonize'],
-                'task_worker_num' => $this->HttpConfig['task_worker_num'],
                 'worker_num' => $this->HttpConfig['worker_num']
             ];
         }
@@ -66,6 +65,8 @@ class Http extends Service implements HttpInterface {
 
             $this->http->on('start', [$this, 'onStart']);
             $this->http->on('request', [$this, 'onRequest']);
+            $this->http->on('WorkerStart', [$this, 'onWorkerStart']);
+            $this->http->on('close', [$this, 'onClose']);
             $this->http->on('task', [$this, 'onTask']);
             $this->http->on('finish', [$this, 'onFinish']);
             $this->http->start(); //启动服务器
@@ -82,7 +83,7 @@ class Http extends Service implements HttpInterface {
      */
     public function onConnect(\swoole_server  $serv, int $fd, int $reactorId)
     {
-        echo "connecting";
+        echo "connecting".PHP_EOL;
     }
 
     /**
@@ -91,7 +92,7 @@ class Http extends Service implements HttpInterface {
      */
     public function onStart(\swoole_server  $serv)
     {
-        echo "http服务启动啦".swoole_cpu_num();
+        echo "http服务启动啦".swoole_cpu_num()."#".$serv->setting['worker_num']."#".$serv->setting['task_worker_num'].PHP_EOL;
         $this->_registerService($serv);
     }
 
@@ -102,6 +103,7 @@ class Http extends Service implements HttpInterface {
      */
     public function onRequest(\swoole_http_request $request, \swoole_http_response $response)
     {
+        $params = [];
         if ($request->server['path_info'] == '/favicon.ico' || $request->server['request_uri'] == '/favicon.ico')       {
             $response->end("<h1>404.</h1>");
             return;
@@ -115,8 +117,23 @@ class Http extends Service implements HttpInterface {
                         if (empty($value['method'])){
                             $msg = '请求方法不存在';
                         }else {
+                            $data = (isset($request->server['query_string'])&&!empty($request->server['query_string']))? $request->server['query_string'] : '';
+
+                            $datas = explode("&", $data);
+                            foreach ($datas as $value){
+                                $options = explode("=", $value);
+                                $params[$options[0]] = $options[1];
+                            }
                             //根据 $controller, $action 映射到不同的控制器类和方法
-                            $msg = call_user_func_array([$value['class'], $value['method']], ['james']);
+                            if (isset($this->http->setting['task_worker_num']) && $this->http->setting['task_worker_num'] > 0){
+                                $this->http->task([
+                                    'class' => $value['class'],
+                                    'method' => $value['method'],
+                                    'data' => $params
+                                ]);
+                            }else{
+                                $msg = call_user_func_array([$value['class'], $value['method']], $params);
+                            }
                         }
                     }
                 }
@@ -134,7 +151,13 @@ class Http extends Service implements HttpInterface {
      */
     public function onWorkerStart(\swoole_server $serv, int $worker_id)
     {
-        echo "open worker ".$worker_id;
+        global $argv;
+        echo "open worker ".$worker_id.PHP_EOL;
+        if($worker_id >= $serv->setting['worker_num']) {
+            swoole_set_process_name("php {$argv[0]} task worker");
+        } else {
+            swoole_set_process_name("php {$argv[0]} event worker");
+        }
     }
 
     /**
@@ -144,7 +167,7 @@ class Http extends Service implements HttpInterface {
      */
     public function onWorkerStop(\swoole_server $serv, int $worker_id)
     {
-        echo "close worker ".$worker_id;
+        echo "close worker ".$worker_id.PHP_EOL;
     }
 
     /**
@@ -157,8 +180,10 @@ class Http extends Service implements HttpInterface {
      */
     public function onTask(\swoole_server $serv, int $task_id, int $src_worker_id, string $data)
     {
-        echo "task ".$task_id." work ".$src_worker_id. " data ".json_encode($data);
-        return;
+        echo "task ".$task_id." work ".$src_worker_id. " data ".json_encode($data).PHP_EOL;
+        sleep(1);
+        $msg = call_user_func_array([$data['class'], $data['method']], $data['data']);
+        return $msg;
     }
 
     /**
@@ -170,7 +195,7 @@ class Http extends Service implements HttpInterface {
      */
     public function onFinish(\swoole_server $serv, int $task_id, string $data)
     {
-        echo "finish ".$task_id. " data ".json_encode($data);
+        echo "finish ".$task_id. " data ".json_encode($data).PHP_EOL;
     }
 
     /**
@@ -182,7 +207,7 @@ class Http extends Service implements HttpInterface {
      */
     public function onClose(\swoole_server $serv, int $fd, int $reactorId)
     {
-        echo "close ".$fd. " reactorId ".$reactorId;
+        echo "close ".$fd. " reactorId ".$reactorId.PHP_EOL;
     }
 
     /**
@@ -192,7 +217,7 @@ class Http extends Service implements HttpInterface {
      */
     private function _getFileContent(string $requestUri):array
     {
-        $services = file_get_contents(dirname(dirname(__FILE__)).'/registerService.txt');
+        $services = file_get_contents(dirname(dirname(dirname(__FILE__))).'/registerService.txt');
         $serviceArr = explode("\n", trim($services, "\n"));
         $service = [];
         foreach($serviceArr as $key=>$value){

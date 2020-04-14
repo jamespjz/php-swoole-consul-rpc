@@ -101,7 +101,7 @@ abstract class Service
                 //task进程数
                 'task_worker_num' => ( array_key_exists('task_worker_num', $config['HttpConfig'])&&$config['HttpConfig']['task_worker_num'] )?$config['HttpConfig']['task_worker_num']:0,
                 //work进程数
-                'worker_num' => ( array_key_exists('worker_num', $config['HttpConfig'])&&$config['HttpConfig']['worker_num'] )?$config['HttpConfig']['worker_num']:0,
+                'worker_num' => ( array_key_exists('worker_num', $config['HttpConfig'])&&$config['HttpConfig']['worker_num'] )?$config['HttpConfig']['worker_num']:swoole_cpu_num(),
                 //设置上传文件的临时目录。目录最大长度不得超过 220 字节
                 'upload_tmp_dir' => ( isset($config['HttpConfig']['upload_tmp_dir'])&&$config['HttpConfig']['upload_tmp_dir'] )?$config['HttpConfig']['upload_tmp_dir']:'/data/uploadfiles/',
                 //针对 Request 对象的配置，设置 POST 消息解析开关，默认开启

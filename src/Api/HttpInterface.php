@@ -16,14 +16,6 @@ use Swoole\Http\Server;
 interface HttpInterface
 {
     /**
-     * 新连接建立时在work进程中回调
-     * @param \swoole_server $serv swoole_server对象
-     * @param int $fd 连接的文件描述符，连接的客户端id
-     * @param int $reactorId 线程id
-     */
-    public function onConnect(\swoole_server  $serv, int $fd, int $reactorId);
-
-    /**
      * HTTP服务启动回调方法
      * @param \swoole_server $serv swoole_server对象
      */

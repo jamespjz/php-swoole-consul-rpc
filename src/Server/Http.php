@@ -25,6 +25,12 @@ class Http extends Service implements HttpInterface {
     protected $http;
 
     /**
+     * buffer区
+     * @var
+     */
+    protected $buffer = [];
+
+    /**
      * 服务初始化
      * @param array $config
      * @return mixed|void
@@ -66,24 +72,13 @@ class Http extends Service implements HttpInterface {
             $this->http->on('start', [$this, 'onStart']);
             $this->http->on('request', [$this, 'onRequest']);
             $this->http->on('WorkerStart', [$this, 'onWorkerStart']);
-            $this->http->on('close', [$this, 'onClose']);
             $this->http->on('task', [$this, 'onTask']);
             $this->http->on('finish', [$this, 'onFinish']);
+            $this->http->on('close', [$this, 'onClose']);
             $this->http->start(); //启动服务器
         }catch (\Exception $e){
             echo $e->getMessage();
         }
-    }
-
-    /**
-     * 新连接建立时在work进程中回调
-     * @param \swoole_server $serv swoole_server对象
-     * @param int $fd 连接的文件描述符，连接的客户端id
-     * @param int $reactorId 线程id
-     */
-    public function onConnect(\swoole_server  $serv, int $fd, int $reactorId)
-    {
-        echo "connecting".PHP_EOL;
     }
 
     /**
@@ -92,8 +87,9 @@ class Http extends Service implements HttpInterface {
      */
     public function onStart(\swoole_server  $serv)
     {
-        echo "http服务启动啦".swoole_cpu_num()."#".$serv->setting['worker_num']."#".$serv->setting['task_worker_num'].PHP_EOL;
-        $this->_registerService($serv);
+        $this->buffer['masterPid'] = $serv->master_pid;
+        $this->buffer['managerPid'] = $serv->manager_pid;
+//        echo "http服务启动啦".swoole_cpu_num()."#".$serv->setting['worker_num']."#".$serv->setting['task_worker_num'].PHP_EOL;
     }
 
     /**
@@ -108,6 +104,7 @@ class Http extends Service implements HttpInterface {
             $response->end("<h1>404.</h1>");
             return;
         }else{
+            $this->buffer['fd'] = $request->fd;
             $msg = 'world！';
             if (isset($request->server['request_uri']) && !empty($request->server['request_uri']) && $request->server['request_uri']!= '/'){
 
@@ -120,17 +117,17 @@ class Http extends Service implements HttpInterface {
                             $data = (isset($request->server['query_string'])&&!empty($request->server['query_string']))? $request->server['query_string'] : '';
 
                             $datas = explode("&", $data);
-                            foreach ($datas as $value){
-                                $options = explode("=", $value);
+                            foreach ($datas as $v){
+                                $options = explode("=", $v);
                                 $params[$options[0]] = $options[1];
                             }
                             //根据 $controller, $action 映射到不同的控制器类和方法
                             if (isset($this->http->setting['task_worker_num']) && $this->http->setting['task_worker_num'] > 0){
-                                $this->http->task([
+                                $this->http->task(json_encode([
                                     'class' => $value['class'],
                                     'method' => $value['method'],
                                     'data' => $params
-                                ]);
+                                ]));
                             }else{
                                 $msg = call_user_func_array([$value['class'], $value['method']], $params);
                             }
@@ -153,11 +150,15 @@ class Http extends Service implements HttpInterface {
     {
         global $argv;
         echo "open worker ".$worker_id.PHP_EOL;
+        $this->buffer['workerId'] = $serv->worker_id;
+        $this->buffer['workerPid'] = $serv->worker_pid;
         if($worker_id >= $serv->setting['worker_num']) {
-            swoole_set_process_name("php {$argv[0]} task worker");
+            swoole_set_process_name("{$argv[0]} PP task worker");
         } else {
-            swoole_set_process_name("php {$argv[0]} event worker");
+            swoole_set_process_name("{$argv[0]} PP event worker");
+            $this->_registerService($serv);
         }
+        $this->_startUI();
     }
 
     /**
@@ -180,8 +181,9 @@ class Http extends Service implements HttpInterface {
      */
     public function onTask(\swoole_server $serv, int $task_id, int $src_worker_id, string $data)
     {
-        echo "task ".$task_id." work ".$src_worker_id. " data ".json_encode($data).PHP_EOL;
+        echo "task ".$task_id." work ".$src_worker_id. " data ".$data.PHP_EOL;
         sleep(1);
+        $data = json_decode($data, true);
         $msg = call_user_func_array([$data['class'], $data['method']], $data['data']);
         return $msg;
     }
@@ -196,6 +198,7 @@ class Http extends Service implements HttpInterface {
     public function onFinish(\swoole_server $serv, int $task_id, string $data)
     {
         echo "finish ".$task_id. " data ".json_encode($data).PHP_EOL;
+        $serv->close($this->buffer['fd'], false);
     }
 
     /**
@@ -208,6 +211,7 @@ class Http extends Service implements HttpInterface {
     public function onClose(\swoole_server $serv, int $fd, int $reactorId)
     {
         echo "close ".$fd. " reactorId ".$reactorId.PHP_EOL;
+        unset($this->buffer);
     }
 
     /**
@@ -245,9 +249,9 @@ class Http extends Service implements HttpInterface {
 
     /**
      * 注册服务
-     * @param $arguments
+     * @param object $arguments
      */
-    private function _registerService($arguments=null)
+    private function _registerService(object $arguments)
     {
         $config = $this->ConsulConfig;
         $service = [
@@ -306,7 +310,9 @@ class Http extends Service implements HttpInterface {
         echo "--------------------------\033[47;30m PORT \033[0m---------------------------\n";
         echo "                   HTTP:".$this->HttpConfig['port']."  TCP:".$this->HttpConfig['port']."\n\n";
         echo "------------------------\033[47;30m PROCESS \033[0m---------------------------\n";
-        echo "      MasterPid---ManagerPid---WorkerId---WorkerPid".PHP_EOL.PHP_EOL;
+        if($serviceInfo[0]->Status == 'passing') {
+            echo "      MasterPid：" . $this->buffer['masterPid'] . "---ManagerPid：" . $this->buffer['managerPid'] . "---WorkerId：" . $this->buffer['workerId'] . "---WorkerPid：" . $this->buffer['workerPid'] . PHP_EOL . PHP_EOL;
+        }
     }
 
     /**
@@ -350,7 +356,7 @@ class Http extends Service implements HttpInterface {
         echo "    Version:0.1 Beta, PHP Version:".PHP_VERSION.PHP_EOL;
         echo "--------------------------\033[47;30m PORT \033[0m---------------------------\n";
         echo "                   HTTP:".$this->HttpConfig['port']."  TCP:".$this->HttpConfig['port']."\n\n";
-        echo PHP_EOL;
+        echo "      MasterPid：".$this->buffer['masterPid']."---ManagerPid：".$this->buffer['managerPid']."---WorkerId：".$this->buffer['workerId']."---WorkerPid：".$this->buffer['workerPid'].PHP_EOL;
     }
 
     /**

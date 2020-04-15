@@ -40,7 +40,6 @@ class Start
                 if($option == '-d'){
                     $config['HttpConfig']['daemonize'] = 1;
                 }
-                (new Http($config))->_startUI();
                 (new Http($config))->run();
                 break;
             case 'http:status':

@@ -160,7 +160,7 @@ class Http extends Service implements HttpInterface {
             if ($this->_registerService($serv)){
                 $this->_startUI($serv);
             }else{
-                $this->_statusUI($serv);
+                $serv->stop($worker_id, false);
             }
         }
     }

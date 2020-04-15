@@ -126,10 +126,11 @@ class Http extends Service implements HttpInterface {
                                 $this->http->task(json_encode([
                                     'class' => $value['class'],
                                     'method' => $value['method'],
+                                    'callback' => $value['callback'] ?? '',
                                     'data' => $params
                                 ]));
                             }else{
-                                $msg = call_user_func_array([$value['class'], $value['method']], $params);
+                                $msg = call_user_func_array([$value['class'], $value['method']], [$params]);
                             }
                         }
                     }
@@ -156,9 +157,12 @@ class Http extends Service implements HttpInterface {
             swoole_set_process_name("{$argv[0]} PP task worker");
         } else {
             swoole_set_process_name("{$argv[0]} PP event worker");
-            $this->_registerService($serv);
+            if ($this->_registerService($serv)){
+                $this->_startUI($serv);
+            }else{
+                $this->_statusUI($serv);
+            }
         }
-        $this->_startUI();
     }
 
     /**
@@ -184,7 +188,7 @@ class Http extends Service implements HttpInterface {
         echo "task ".$task_id." work ".$src_worker_id. " data ".$data.PHP_EOL;
         sleep(1);
         $data = json_decode($data, true);
-        $msg = call_user_func_array([$data['class'], $data['method']], $data['data']);
+        $msg = call_user_func_array([$data['class'], $data['method']], [$data['data']]);
         return $msg;
     }
 
@@ -197,8 +201,17 @@ class Http extends Service implements HttpInterface {
      */
     public function onFinish(\swoole_server $serv, int $task_id, string $data)
     {
-        echo "finish ".$task_id. " data ".json_encode($data).PHP_EOL;
-        $serv->close($this->buffer['fd'], false);
+        echo "finish ".$task_id. " data ".$data.PHP_EOL;
+        $data = json_decode($data, true);
+        if ($data['callback']){
+            try{
+                $class = new ReflectionClass($data['class']);
+                $class->getMethod($data['callback']);
+                call_user_func_array([$data['class'], $data['callback']], ['success', json_encode($data['data'])]);
+            }catch (\Exception $e){
+                echo $e->getMessage();
+            }
+        }
     }
 
     /**
@@ -308,7 +321,7 @@ class Http extends Service implements HttpInterface {
             echo "         The Server is \033[31m ".$serviceInfo[0]->Status." \033[0m on HTTP,and the Server \e[31m Fails \e[0m to Start" . PHP_EOL . PHP_EOL;
         }
         echo "--------------------------\033[47;30m PORT \033[0m---------------------------\n";
-        echo "                   HTTP:".$this->HttpConfig['port']."  TCP:".$this->HttpConfig['port']."\n\n";
+        echo "                   HTTP:".$this->HttpConfig['port']."  TCP:".$this->TcpConfig['port']."\n\n";
         echo "------------------------\033[47;30m PROCESS \033[0m---------------------------\n";
         if($serviceInfo[0]->Status == 'passing') {
             echo "      MasterPid：" . $this->buffer['masterPid'] . "---ManagerPid：" . $this->buffer['managerPid'] . "---WorkerId：" . $this->buffer['workerId'] . "---WorkerPid：" . $this->buffer['workerPid'] . PHP_EOL . PHP_EOL;
@@ -338,7 +351,7 @@ class Http extends Service implements HttpInterface {
         exit;
     }
 
-    private function _startUI($arguments=null)
+    private function _startUI(object $arguments)
     {
         echo PHP_EOL;
         //打印服务器字幕
@@ -355,8 +368,8 @@ class Http extends Service implements HttpInterface {
         echo "\033[1A\n\033[K-----------------------\033[47;30m PP Rpc Server \033[0m-----------------------------\n\033[0m";
         echo "    Version:0.1 Beta, PHP Version:".PHP_VERSION.PHP_EOL;
         echo "--------------------------\033[47;30m PORT \033[0m---------------------------\n";
-        echo "                   HTTP:".$this->HttpConfig['port']."  TCP:".$this->HttpConfig['port']."\n\n";
-        echo "      MasterPid：".$this->buffer['masterPid']."---ManagerPid：".$this->buffer['managerPid']."---WorkerId：".$this->buffer['workerId']."---WorkerPid：".$this->buffer['workerPid'].PHP_EOL;
+        echo "                   HTTP:".$this->HttpConfig['port']."  TCP:".$this->TcpConfig['port']."\n\n";
+        echo "      MasterPid：".$arguments->master_pid."---ManagerPid：".$arguments->manager_pid."---WorkerId：".$arguments->worker_id."---WorkerPid：".$arguments->worker_pid.PHP_EOL;
     }
 
     /**

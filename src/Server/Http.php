@@ -11,6 +11,7 @@
  */
 namespace Jamespi\Rpc\src\Server;
 
+use ReflectionClass;
 use Jamespi\Rpc\src\Api\HttpInterface;
 use Swoole\Http\Server;
 use Jamespi\Consul\Controllers\ServiceController;
@@ -114,12 +115,17 @@ class Http extends Service implements HttpInterface {
                         if (empty($value['method'])){
                             $msg = '请求方法不存在';
                         }else {
+                            $this->buffer['class'] = $value['class'];
                             $data = (isset($request->server['query_string'])&&!empty($request->server['query_string']))? $request->server['query_string'] : '';
 
                             $datas = explode("&", $data);
                             foreach ($datas as $v){
                                 $options = explode("=", $v);
-                                $params[$options[0]] = $options[1];
+                                if ($options[0] == 'callback'){
+                                    $this->buffer['callback'] = $options[1];
+                                }else{
+                                    $params[$options[0]] = $options[1];
+                                }
                             }
                             //根据 $controller, $action 映射到不同的控制器类和方法
                             if (isset($this->http->setting['task_worker_num']) && $this->http->setting['task_worker_num'] > 0){
@@ -157,7 +163,8 @@ class Http extends Service implements HttpInterface {
             swoole_set_process_name("{$argv[0]} PP task worker");
         } else {
             swoole_set_process_name("{$argv[0]} PP event worker");
-            if ($this->_registerService($serv)){
+            $result = json_decode($this->_registerService($serv), true);
+            if ($result['status'] == 'success'){
                 $this->_startUI($serv);
             }else{
                 $serv->stop($worker_id, false);
@@ -202,12 +209,11 @@ class Http extends Service implements HttpInterface {
     public function onFinish(\swoole_server $serv, int $task_id, string $data)
     {
         echo "finish ".$task_id. " data ".$data.PHP_EOL;
-        $data = json_decode($data, true);
-        if ($data['callback']){
+        if ((isset($this->buffer['class'])&&!empty($this->buffer['class'])) && (isset($this->buffer['callback'])&&!empty($this->buffer['callback']))){
             try{
-                $class = new ReflectionClass($data['class']);
-                $class->getMethod($data['callback']);
-                call_user_func_array([$data['class'], $data['callback']], ['success', json_encode($data['data'])]);
+                $class = new ReflectionClass($this->buffer['class']);
+                $class->getMethod($this->buffer['callback']);
+                echo call_user_func_array([$this->buffer['class'], $this->buffer['callback']], ['success', $data]);
             }catch (\Exception $e){
                 echo $e->getMessage();
             }
@@ -281,8 +287,13 @@ class Http extends Service implements HttpInterface {
             ]
         ];
 
-        $serviceModel = new ServiceController(new Consul(), $config['host'], $config['port']);
-        return call_user_func_array([$serviceModel, 'registrationService'], $service);
+        try{
+            $serviceModel = new ServiceController(new Consul(), $config['host'], $config['port']);
+            $msg = call_user_func_array([$serviceModel, 'registrationService'], $service);
+            return json_encode(['status'=>'success', 'msg'=>$msg]);
+        }catch (\Exception $e){
+            return json_encode(['status'=>'failed', 'msg'=>$e->getMessage()] );
+        }
     }
 
     private function _deleteService($arguments=null)

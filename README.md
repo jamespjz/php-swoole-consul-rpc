@@ -66,6 +66,7 @@ $config = [
 
 echo (new Start())->run($argv, $config);
 ```
+***注意：如果您需要rpc服务的处理结果的话，请在请求参数种添加回调方法callback=functionName***
 > 使用命令
 ```
 //(假如您的入口文件名为index.php)在命令行模式下输入如下命令：

@@ -314,8 +314,6 @@ class Http extends Service implements HttpInterface {
 
         echo PHP_EOL;
         //打印服务器字幕
-//        swoole_set_process_name("PP Master Thread");
-        cli_set_process_title("PP Master Thread");
         echo PHP_EOL.PHP_EOL;
         echo "--------------------------------------------------------------------------".PHP_EOL;
         echo "|                  |----    |----    |----    |----     ----              |".PHP_EOL;

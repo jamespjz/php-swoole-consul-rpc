@@ -1,7 +1,7 @@
 # 皮皮RPC框架(PP RPC Server)
 php整合swoole及consul进行封装成的RPC服务端框架，支持consul进行服务治理。
 
->使用版本说明：Consul v1.7.2 - PHP v7.4.1 - Swoole v4.4.12 - Composer v1.10
+>使用版本说明：Consul v1.7.2 - PHP >=7.0 - Swoole v4.4.12 - Composer v1.10
 
 # 简要说明：
 公司目前正在全面转微服务架构，这个RPC框架是为了让公司phper在分布式系统间能够简单方便调用各依赖服务的方法从而进行封装的框架，框架采用PHP+SWOOLE+CONSUL进行搭建，支持服务治理功能，支持HTTP/TCP/UDP/Websocket协议，目前为version 0.1-dev。
